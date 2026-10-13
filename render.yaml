@@ -1,0 +1,25 @@
+# Free public demo on Render (https://render.com/docs/blueprint-spec).
+# The free plan has no persistent disk and sleeps after 15 idle minutes, so the
+# server reloads fresh demo data whenever it starts (DEMO_DATA). Reservations
+# made on the demo disappear when it sleeps. For real use, run it on a server
+# with a persistent disk (see Production in README.md).
+services:
+  - type: web
+    name: badya-weekly-activities
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/auth/session
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: DEMO_DATA
+        value: "true"
+      - key: ADMIN_EMAIL
+        value: sports.admin@badyauni.edu.eg
+      # Render generates a random password; it is shown under Environment in the dashboard.
+      - key: ADMIN_PASSWORD
+        generateValue: true
