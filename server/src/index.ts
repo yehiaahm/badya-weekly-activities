@@ -13,7 +13,7 @@ setInterval(() => services.auth.purgeExpired(), 60 * 60_000).unref();
 
 const server = app.listen(ctx.config.port, ctx.config.host, () => {
   ctx.log.info(
-    `The Games for Badya API listening on http://${ctx.config.host}:${ctx.config.port} ` +
+    `SAC Sports Hub API listening on http://${ctx.config.host}:${ctx.config.port} ` +
       `(${ctx.config.nodeEnv}, time zone ${ctx.config.timeZone})`,
   );
 });

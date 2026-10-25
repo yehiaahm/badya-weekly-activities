@@ -167,7 +167,7 @@ export class AuthService {
           '',
           `It expires in ${CODE_TTL_MINUTES} minutes. If you didn't ask for it, you can ignore this email.`,
           '',
-          'The Games for Badya – Sports Office',
+          'SAC Sports Hub – Sports Office',
         ].join('\n'),
       })
       .catch((error: unknown) => this.ctx.log.error('Failed to send sign-in code', { error: String(error) }));

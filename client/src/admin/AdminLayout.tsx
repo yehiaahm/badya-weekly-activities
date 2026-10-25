@@ -84,7 +84,7 @@ export function AdminLayout() {
           </button>
           <BrandMark size={34} />
           <span className="topbar-title">
-            <strong>The Games for Badya</strong>
+            <strong>SAC Sports Hub</strong>
             <small>Sports Office Admin</small>
           </span>
         </div>

@@ -33,7 +33,7 @@ export function AdminLoginPage() {
     <div className="login-shell">
       <div className="login-intro">
         <span className="hero-eyebrow">Play · Unite · Inspire</span>
-        <p className="display">The Games for Badya</p>
+        <p className="display">SAC Sports Hub</p>
         <span>Sports Office · Badya University</span>
       </div>
       <form className="card login-card stack" onSubmit={submit}>

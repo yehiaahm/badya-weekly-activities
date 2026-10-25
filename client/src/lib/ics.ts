@@ -16,7 +16,7 @@ export function downloadCalendarEvent(activity: ActivityDTO, reservationCode: st
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//The Games for Badya//Weekly Activities//EN',
+    'PRODID:-//SAC Sports Hub//Weekly Activities//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
@@ -24,7 +24,7 @@ export function downloadCalendarEvent(activity: ActivityDTO, reservationCode: st
     `DTSTAMP:${stamp(new Date())}`,
     `DTSTART:${stamp(start)}`,
     `DTEND:${stamp(end)}`,
-    `SUMMARY:${escapeText(`${activity.name} – The Games for Badya`)}`,
+    `SUMMARY:${escapeText(`${activity.name} – SAC Sports Hub`)}`,
     `LOCATION:${escapeText(activity.location)}`,
     `DESCRIPTION:${escapeText(`Reservation ID: ${reservationCode}\nCoach: ${activity.coach}`)}`,
     'BEGIN:VALARM',

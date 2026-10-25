@@ -64,7 +64,7 @@ export const config = {
     password: process.env.ADMIN_PASSWORD ?? '',
   },
   mail: {
-    from: str('MAIL_FROM', 'The Games for Badya <no-reply@badyauni.edu.eg>'),
+    from: str('MAIL_FROM', 'SAC Sports Hub <no-reply@badyauni.edu.eg>'),
     smtpHost: process.env.SMTP_HOST?.trim() ?? '',
     smtpPort: int('SMTP_PORT', 587),
     smtpSecure: bool('SMTP_SECURE', false),

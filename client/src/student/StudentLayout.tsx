@@ -12,7 +12,7 @@ export function StudentLayout() {
       <ScrollRestoration getKey={(location) => location.pathname} />
       <header className="student-header">
         <div className="container header-inner">
-          <Link to="/" className="brand" aria-label="The Games for Badya – Weekly Activities home">
+          <Link to="/" className="brand" aria-label="SAC Sports Hub – Weekly Activities home">
             <BrandLockup />
           </Link>
           <nav className="student-nav desktop-only" aria-label="Main">
@@ -38,8 +38,8 @@ export function StudentLayout() {
           <div className="footer-brand">
             <BrandMark size={52} />
             <div>
-              <strong>Student Athlete Committee</strong>
-              <span>Badya University</span>
+              <strong>SAC Sports Hub</strong>
+              <span>Student Athlete Committee · Badya University</span>
               <span className="footer-motto">Play · Unite · Inspire</span>
             </div>
           </div>
@@ -55,7 +55,7 @@ export function StudentLayout() {
           </nav>
         </div>
         <div className="container footer-legal">
-          © {new Date().getFullYear()} Badya University · Sports & Student Activities Office
+          © {new Date().getFullYear()} SAC Sports Hub · Powered by SAC Sports Technology
         </div>
       </footer>
 

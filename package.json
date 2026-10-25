@@ -2,7 +2,7 @@
   "name": "badya-weekly-activities",
   "version": "1.0.0",
   "private": true,
-  "description": "The Games for Badya - Weekly Activities & Student Reservation Platform",
+  "description": "SAC Sports Hub - Weekly Activities & Student Reservation Platform",
   "type": "module",
   "engines": {
     "node": ">=22.22.0"

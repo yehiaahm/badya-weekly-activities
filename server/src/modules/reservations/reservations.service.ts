@@ -230,7 +230,7 @@ export class ReservationService {
       'Please arrive a few minutes early and have your Reservation ID ready.',
       `Can't make it? Cancel from "My Reservations" before the activity starts so another student can take your seat.`,
       '',
-      'The Games for Badya – Sports Office',
+      'SAC Sports Hub – Sports Office',
     ].join('\n');
     this.ctx.mailer
       .send({ to: student.email, subject: `Reservation Confirmed – ${activity.name}, ${formatFullDate(activity.date)}`, text })

@@ -1,4 +1,4 @@
-export const APP_NAME = 'The Games for Badya';
+export const APP_NAME = 'SAC Sports Hub';
 export const APP_TAGLINE = 'Weekly Activities';
 
 export const ACADEMIC_LEVELS = ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'Postgraduate'] as const;
