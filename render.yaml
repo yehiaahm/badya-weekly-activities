@@ -1,8 +1,8 @@
-# Free public demo on Render (https://render.com/docs/blueprint-spec).
-# The free plan has no persistent disk and sleeps after 15 idle minutes, so the
-# server reloads fresh demo data whenever it starts (DEMO_DATA). Reservations
-# made on the demo disappear when it sleeps. For real use, run it on a server
-# with a persistent disk (see Production in README.md).
+# SAC Sports Hub on Render (https://render.com/docs/blueprint-spec).
+# No demo data is loaded (DEMO_DATA is off). The free plan has no persistent disk
+# and sleeps after 15 idle minutes, so the database starts empty whenever the
+# server restarts: activities added in /admin disappear then. For real use, run it
+# on a server with a persistent disk (see Production in README.md).
 services:
   - type: web
     name: badya-weekly-activities
@@ -17,7 +17,7 @@ services:
       - key: TRUST_PROXY
         value: "true"
       - key: DEMO_DATA
-        value: "true"
+        value: "false"
       - key: ADMIN_EMAIL
         value: sports.admin@badyauni.edu.eg
       # Render generates a random password; it is shown under Environment in the dashboard.

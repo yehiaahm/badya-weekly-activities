@@ -1,4 +1,4 @@
-# The Games for Badya – Weekly Activities
+# SAC Sports Hub – Weekly Activities
 
 A web platform for Badya's sports and recreational activities. The Sports Office plans each month, and students browse the weekly schedule and reserve a spot from their phones.
 
@@ -99,7 +99,7 @@ This is for showing the project to someone, not for real use. For a permanent li
 
 - The admin email is `sports.admin@badyauni.edu.eg`. Render generates the password; find it under the service's **Environment** tab (`ADMIN_PASSWORD`).
 - The free plan sleeps after 15 minutes without visitors. The next visit takes about a minute to wake it.
-- It has no persistent disk. Every start reloads fresh demo data (`DEMO_DATA=true`), so anything visitors add disappears when it sleeps. That's fine for a demo, but not for real students.
+- It starts empty: `DEMO_DATA` is `false`, so no sample activities are loaded. It also has no persistent disk, so anything added in `/admin` or reserved by visitors disappears when it sleeps or restarts. That's not enough for real students; use a server with a persistent disk (see Production).
 
 ## Production
 
