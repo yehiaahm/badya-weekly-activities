@@ -4,6 +4,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
 import './styles/student.css';
+import './styles/fitness.css';
 
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';

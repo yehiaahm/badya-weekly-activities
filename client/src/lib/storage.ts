@@ -43,4 +43,5 @@ export const STORAGE_KEYS = {
   lastConfirmation: 'badya.last-confirmation',
   lastEmail: 'badya.last-email',
   adminMonth: 'badya.admin-month',
+  fitnessBest: 'badya.fitness-best',
 } as const;

@@ -3,6 +3,7 @@ import { createBrowserRouter, Link, useRouteError } from 'react-router';
 import { EmptyState, ErrorState, LoadingState } from './components/ui.tsx';
 import { ActivityDetailPage } from './student/ActivityDetailPage.tsx';
 import { ConfirmationPage } from './student/ConfirmationPage.tsx';
+import { FitnessPage } from './student/FitnessPage.tsx';
 import { MyReservationsPage } from './student/MyReservationsPage.tsx';
 import { ReservePage } from './student/ReservePage.tsx';
 import { StudentLayout } from './student/StudentLayout.tsx';
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
       { path: 'activities/:id/reserve', Component: ReservePage },
       { path: 'reservations/confirmed', Component: ConfirmationPage },
       { path: 'my-reservations', Component: MyReservationsPage },
+      { path: 'fitness', Component: FitnessPage },
       { path: '*', Component: NotFound },
     ],
   },

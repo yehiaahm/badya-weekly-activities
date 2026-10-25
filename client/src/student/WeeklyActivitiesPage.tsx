@@ -1,10 +1,11 @@
-import { CalendarSearch } from 'lucide-react';
+import { CalendarSearch, Flame } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router';
-import { formatDayDate, formatMonth } from '@shared/format.ts';
+import { Link, useSearchParams } from 'react-router';
+import { formatDayDate, formatMonth, formatTime } from '@shared/format.ts';
 import type { ActivityDTO } from '@shared/types.ts';
 import { EmptyState, ErrorState, MonthSwitcher } from '../components/ui.tsx';
 import { categoryVars } from '../lib/categories.tsx';
+import { FITNESS_EVENT } from '../lib/fitness.ts';
 import { useMyReservations, usePublicActivities, usePublicActivitiesForMonths, useSession } from '../lib/queries.ts';
 import { useToday } from '../lib/time.ts';
 import { currentWeekStart, defaultMonth, defaultWeek, monthsOfWeek, validMonth, workingWeeksOf } from '../lib/weeks.ts';
@@ -111,6 +112,24 @@ export function WeeklyActivitiesPage() {
       </section>
 
       <div className="container">
+        {today <= FITNESS_EVENT.date && (
+          <Link to="/fitness" className="fit-banner">
+            <span className="fit-banner-text">
+              <span className="fit-banner-icon" aria-hidden>
+                <Flame size={24} />
+              </span>
+              <span>
+                <strong>
+                  {FITNESS_EVENT.title}: {FITNESS_EVENT.tagline}
+                </strong>
+                <small>
+                  {formatDayDate(FITNESS_EVENT.date)} · {formatTime(FITNESS_EVENT.time)} · Open for all students
+                </small>
+              </span>
+            </span>
+            <span className="btn btn-accent">Countdown + Move Lab</span>
+          </Link>
+        )}
         <div className="browse-toolbar">
           <div className="stack">
             <div className="row">

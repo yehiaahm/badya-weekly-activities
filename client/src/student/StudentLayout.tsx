@@ -1,4 +1,4 @@
-import { CalendarDays, Ticket } from 'lucide-react';
+import { CalendarDays, Flame, Ticket } from 'lucide-react';
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router';
 import { BrandLockup, BrandMark } from '../components/Brand.tsx';
 
@@ -18,6 +18,9 @@ export function StudentLayout() {
           <nav className="student-nav desktop-only" aria-label="Main">
             <NavLink to="/" className={() => navClass(browsing)}>
               <CalendarDays size={17} /> Weekly Activities
+            </NavLink>
+            <NavLink to="/fitness" className={({ isActive }) => navClass(isActive)}>
+              <Flame size={17} /> Move Lab
             </NavLink>
             <NavLink to="/my-reservations" className={({ isActive }) => navClass(isActive)}>
               <Ticket size={17} /> My Reservations
@@ -60,6 +63,10 @@ export function StudentLayout() {
         <NavLink to="/" className={() => navClass(browsing)}>
           <CalendarDays size={22} />
           Weekly Activities
+        </NavLink>
+        <NavLink to="/fitness" className={({ isActive }) => navClass(isActive)}>
+          <Flame size={22} />
+          Move Lab
         </NavLink>
         <NavLink to="/my-reservations" className={({ isActive }) => navClass(isActive)}>
           <Ticket size={22} />

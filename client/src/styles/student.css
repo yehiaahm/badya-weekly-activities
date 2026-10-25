@@ -218,7 +218,7 @@
     right: 0;
     bottom: 0;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
     background: rgba(255, 255, 255, 0.97);
