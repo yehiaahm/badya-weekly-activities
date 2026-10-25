@@ -99,7 +99,7 @@ This is for showing the project to someone, not for real use. For a permanent li
 
 - The admin email is `sports.admin@badyauni.edu.eg`. Render generates the password; find it under the service's **Environment** tab (`ADMIN_PASSWORD`).
 - The free plan sleeps after 15 minutes without visitors. The next visit takes about a minute to wake it.
-- It starts empty: `DEMO_DATA` is `false`, so no sample activities are loaded. It also has no persistent disk, so anything added in `/admin` or reserved by visitors disappears when it sleeps or restarts. That's not enough for real students; use a server with a persistent disk (see Production).
+- It starts with only the SAC "Aerobics & Fitness" kick-off (Wednesday 28 October, 11:30 AM): `DEMO_DATA` is `false`, so no sample activities are loaded, and `FEATURED_EVENT=true` puts that one activity back after every restart (`server/src/db/featured-event.ts`; capacity 100 and the 12:30 PM end time are planning values you can change in `/admin`). It also has no persistent disk, so anything added in `/admin` or reserved by visitors disappears when it sleeps or restarts. That's not enough for real students; use a server with a persistent disk (see Production).
 
 ## Production
 

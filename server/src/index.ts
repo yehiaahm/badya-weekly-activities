@@ -1,5 +1,6 @@
 import { createApp } from './app.ts';
 import { createContext, ensureAdmin } from './bootstrap.ts';
+import { ensureFeaturedEvent } from './db/featured-event.ts';
 import { loadDemoData } from './db/seed-demo.ts';
 
 const ctx = createContext();
@@ -7,6 +8,7 @@ const { app, services } = createApp(ctx);
 
 // Hosts without a persistent disk (see render.yaml) start empty after every restart.
 if (ctx.config.demoData && !ctx.db.get(`SELECT 1 FROM activities LIMIT 1`)) await loadDemoData(ctx);
+ensureFeaturedEvent(ctx, services.activities);
 await ensureAdmin(services.auth, ctx.config, ctx.log);
 services.auth.purgeExpired();
 setInterval(() => services.auth.purgeExpired(), 60 * 60_000).unref();

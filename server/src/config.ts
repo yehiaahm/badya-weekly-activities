@@ -54,6 +54,8 @@ export const config = {
   trustProxy: bool('TRUST_PROXY', false),
   /** Hosted demos: load demo data on start-up whenever the database has no activities. */
   demoData: bool('DEMO_DATA', false),
+  /** Add the SAC kick-off activity on start-up when it is missing (for hosts that lose their database on restart). */
+  featuredEvent: bool('FEATURED_EVENT', false),
   /** Development convenience: return one-time sign-in codes in the API response. Never on in production. */
   exposeDevCodes: !isProduction && bool('EXPOSE_DEV_CODES', true),
   adminSessionDays: int('ADMIN_SESSION_DAYS', 7),

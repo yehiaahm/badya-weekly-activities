@@ -18,6 +18,9 @@ services:
         value: "true"
       - key: DEMO_DATA
         value: "false"
+      # Puts the SAC "Aerobics & Fitness" activity back after every restart.
+      - key: FEATURED_EVENT
+        value: "true"
       - key: ADMIN_EMAIL
         value: sports.admin@badyauni.edu.eg
       # Render generates a random password; it is shown under Environment in the dashboard.
