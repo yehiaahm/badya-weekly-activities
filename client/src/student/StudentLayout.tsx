@@ -1,11 +1,15 @@
 import { CalendarDays, Flame, Ticket } from 'lucide-react';
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router';
 import { BrandLockup, BrandMark } from '../components/Brand.tsx';
+import { fitnessEventPhase } from '../lib/fitness.ts';
+import { useUniversityNow } from '../lib/time.ts';
 
 export function StudentLayout() {
   const { pathname } = useLocation();
   const browsing = pathname === '/' || pathname.startsWith('/activities') || pathname.startsWith('/reservations');
   const navClass = (active: boolean) => (active ? 'active' : undefined);
+  // Move Lab belongs to the Aerobics & Fitness kick-off and closes once it is over.
+  const moveLabOpen = fitnessEventPhase(useUniversityNow()) !== 'done';
 
   return (
     <div className="student-shell">
@@ -19,9 +23,11 @@ export function StudentLayout() {
             <NavLink to="/" className={() => navClass(browsing)}>
               <CalendarDays size={17} /> Weekly Activities
             </NavLink>
-            <NavLink to="/fitness" className={({ isActive }) => navClass(isActive)}>
-              <Flame size={17} /> Move Lab
-            </NavLink>
+            {moveLabOpen && (
+              <NavLink to="/fitness" className={({ isActive }) => navClass(isActive)}>
+                <Flame size={17} /> Move Lab
+              </NavLink>
+            )}
             <NavLink to="/my-reservations" className={({ isActive }) => navClass(isActive)}>
               <Ticket size={17} /> My Reservations
             </NavLink>
@@ -64,10 +70,12 @@ export function StudentLayout() {
           <CalendarDays size={22} />
           Weekly Activities
         </NavLink>
-        <NavLink to="/fitness" className={({ isActive }) => navClass(isActive)}>
-          <Flame size={22} />
-          Move Lab
-        </NavLink>
+        {moveLabOpen && (
+          <NavLink to="/fitness" className={({ isActive }) => navClass(isActive)}>
+            <Flame size={22} />
+            Move Lab
+          </NavLink>
+        )}
         <NavLink to="/my-reservations" className={({ isActive }) => navClass(isActive)}>
           <Ticket size={22} />
           My Reservations

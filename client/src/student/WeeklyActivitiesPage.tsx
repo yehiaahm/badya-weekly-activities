@@ -1,6 +1,7 @@
 import { CalendarCheck, CalendarSearch, Flame } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { addDays, addMonths, monthOf } from '@shared/dates.ts';
 import { formatDayDate, formatMonth, formatTime } from '@shared/format.ts';
 import type { ActivityDTO } from '@shared/types.ts';
 import { EmptyState, ErrorState, MonthSwitcher } from '../components/ui.tsx';
@@ -16,12 +17,28 @@ export function WeeklyActivitiesPage() {
   const today = now.slice(0, 10);
   const fitnessPhase = fitnessEventPhase(now);
   const [params, setParams] = useSearchParams();
-  const month = validMonth(params.get('month'), defaultMonth(today));
   const category = params.get('category');
   const availableOnly = params.get('available') === '1';
 
+  // With nothing left this week, open on the week of the next upcoming activity instead of an empty page.
+  const baseMonth = defaultMonth(today);
+  const upcomingQuery = usePublicActivitiesForMonths([baseMonth, addMonths(baseMonth, 1)]);
+  const nextUpcoming = useMemo(
+    () =>
+      upcomingQuery.activities
+        .filter((a) => a.date >= today && a.status !== 'completed' && a.status !== 'cancelled')
+        .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0],
+    [upcomingQuery.activities, today],
+  );
+  const pinned = params.has('month') || params.has('week');
+  const jumpTo = !pinned && nextUpcoming && nextUpcoming.date >= addDays(currentWeekStart(today), 7) ? nextUpcoming.date : null;
+
+  const month = validMonth(params.get('month'), jumpTo ? monthOf(jumpTo) : baseMonth);
   const weeks = useMemo(() => workingWeeksOf(month), [month]);
-  const week = weeks.find((w) => w.start === params.get('week')) ?? defaultWeek(weeks, today);
+  const week =
+    weeks.find((w) => w.start === params.get('week')) ??
+    (jumpTo ? weeks.find((w) => w.days.includes(jumpTo)) : undefined) ??
+    defaultWeek(weeks, today);
 
   const monthQuery = usePublicActivities(month);
   const weekQuery = usePublicActivitiesForMonths(monthsOfWeek(week));
@@ -62,6 +79,8 @@ export function WeeklyActivitiesPage() {
 
   const update = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
+    // Pin the month being shown, so picking a week never snaps back to the default month.
+    if (!next.has('month')) next.set('month', month);
     for (const [key, value] of Object.entries(changes)) {
       if (value === null) next.delete(key);
       else next.set(key, value);
@@ -120,14 +139,13 @@ export function WeeklyActivitiesPage() {
             <div>
               <div className="alert-title">{FITNESS_EVENT.title} has ended</div>
               Thanks to everyone who joined on {formatDayDate(FITNESS_EVENT.date)}.
-              {NEXT_FITNESS_THEME && (
-                <>
-                  {' '}
-                  Next session: <strong>{NEXT_FITNESS_THEME.name}</strong>, {formatDayDate(NEXT_FITNESS_THEME.date)}.
-                </>
-              )}
             </div>
           </div>
+        )}
+        {jumpTo && (
+          <p className="muted" role="status">
+            Nothing left this week — showing the next week with activities.
+          </p>
         )}
         {fitnessPhase !== 'done' && (
           <Link to="/fitness" className="fit-banner">

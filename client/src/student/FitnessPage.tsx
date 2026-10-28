@@ -1,9 +1,10 @@
-import { CalendarDays, Check, Clock, MapPin, Pause, Play, RotateCcw, Share2, Sparkles, Trophy, Users } from 'lucide-react';
+import { CalendarCheck, CalendarDays, Check, Clock, MapPin, Pause, Play, RotateCcw, Share2, Sparkles, Trophy, Users } from 'lucide-react';
 import { useEffect, useMemo, useReducer, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { monthOf, zonedToInstant } from '@shared/dates.ts';
 import { formatDayDate, formatMonthDay, formatTime } from '@shared/format.ts';
 import { useToast } from '../components/feedback.tsx';
+import { EmptyState } from '../components/ui.tsx';
 import {
   FITNESS_EVENT,
   FITNESS_THEMES,
@@ -349,6 +350,25 @@ export function FitnessPage() {
     (a) => a.date === FITNESS_EVENT.date && /aerobic|fitness|hiit|dance/i.test(`${a.category} ${a.name}`),
   );
 
+  if (countdown.phase === 'done') {
+    return (
+      <div className="container page">
+        <EmptyState
+          icon={CalendarCheck}
+          title={`${FITNESS_EVENT.title} has ended`}
+          action={
+            <Link to="/" className="btn btn-primary">
+              Browse activities
+            </Link>
+          }
+        >
+          The Move Lab was part of the {FITNESS_EVENT.title} kick-off on {formatDayDate(FITNESS_EVENT.date)} and is now closed.
+          Thanks to everyone who joined!
+        </EmptyState>
+      </div>
+    );
+  }
+
   return (
     <>
       <section className="fit-hero">
@@ -393,15 +413,6 @@ export function FitnessPage() {
               <div className="fit-live">
                 <span className="fit-live-dot" aria-hidden /> Happening now
                 <small>Head to the {FITNESS_EVENT.location}</small>
-              </div>
-            )}
-            {countdown.phase === 'done' && (
-              <div className="fit-live">
-                This event has ended
-                <small>
-                  Thanks for joining! Next up: {FITNESS_THEMES.find((t) => t.date > FITNESS_EVENT.date)?.name ?? 'more to come'} · new
-                  theme every week
-                </small>
               </div>
             )}
             {linked ? (
