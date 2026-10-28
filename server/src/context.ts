@@ -17,6 +17,10 @@ export interface AppContext {
   clock: Clock;
   mailer: Mailer;
   log: Logger;
+  /** Runs a promise detached from the request (errors are logged, never thrown). Tests can await it instead. */
+  background: (task: Promise<unknown>) => void;
+  /** Asks the host to call `reservations.sheet.flush()` again at `at` (Durable Object alarm, or a timer on Node). */
+  scheduleRetry?: (at: Date) => void;
 }
 
 /** Current wall-clock time at the university, e.g. '2026-09-28T13:05'. */

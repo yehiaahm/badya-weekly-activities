@@ -1,18 +1,20 @@
-import { CalendarSearch, Flame } from 'lucide-react';
+import { CalendarCheck, CalendarSearch, Flame } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { formatDayDate, formatMonth, formatTime } from '@shared/format.ts';
 import type { ActivityDTO } from '@shared/types.ts';
 import { EmptyState, ErrorState, MonthSwitcher } from '../components/ui.tsx';
 import { categoryVars } from '../lib/categories.tsx';
-import { FITNESS_EVENT } from '../lib/fitness.ts';
+import { FITNESS_EVENT, fitnessEventPhase, NEXT_FITNESS_THEME } from '../lib/fitness.ts';
 import { useMyReservations, usePublicActivities, usePublicActivitiesForMonths, useSession } from '../lib/queries.ts';
-import { useToday } from '../lib/time.ts';
+import { useUniversityNow } from '../lib/time.ts';
 import { currentWeekStart, defaultMonth, defaultWeek, monthsOfWeek, validMonth, workingWeeksOf } from '../lib/weeks.ts';
 import { ActivityCard } from './ActivityCard.tsx';
 
 export function WeeklyActivitiesPage() {
-  const today = useToday();
+  const now = useUniversityNow();
+  const today = now.slice(0, 10);
+  const fitnessPhase = fitnessEventPhase(now);
   const [params, setParams] = useSearchParams();
   const month = validMonth(params.get('month'), defaultMonth(today));
   const category = params.get('category');
@@ -112,7 +114,22 @@ export function WeeklyActivitiesPage() {
       </section>
 
       <div className="container">
-        {today <= FITNESS_EVENT.date && (
+        {fitnessPhase === 'done' && today < (NEXT_FITNESS_THEME?.date ?? today) && (
+          <div className="alert" role="status">
+            <CalendarCheck size={20} />
+            <div>
+              <div className="alert-title">{FITNESS_EVENT.title} has ended</div>
+              Thanks to everyone who joined on {formatDayDate(FITNESS_EVENT.date)}.
+              {NEXT_FITNESS_THEME && (
+                <>
+                  {' '}
+                  Next session: <strong>{NEXT_FITNESS_THEME.name}</strong>, {formatDayDate(NEXT_FITNESS_THEME.date)}.
+                </>
+              )}
+            </div>
+          </div>
+        )}
+        {fitnessPhase !== 'done' && (
           <Link to="/fitness" className="fit-banner">
             <span className="fit-banner-text">
               <span className="fit-banner-icon" aria-hidden>
@@ -123,7 +140,8 @@ export function WeeklyActivitiesPage() {
                   {FITNESS_EVENT.title}: {FITNESS_EVENT.tagline}
                 </strong>
                 <small>
-                  {formatDayDate(FITNESS_EVENT.date)} · {formatTime(FITNESS_EVENT.time)} · Open for all students
+                  {fitnessPhase === 'live' ? 'Happening now' : formatDayDate(FITNESS_EVENT.date)} · {formatTime(FITNESS_EVENT.time)} ·
+                  Open for all students
                 </small>
               </span>
             </span>

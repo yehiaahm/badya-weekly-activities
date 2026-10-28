@@ -1,4 +1,4 @@
-import { Search, Ticket } from 'lucide-react';
+import { Download, Search, Ticket } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toLocalDateTime } from '@shared/dates.ts';
@@ -33,7 +33,14 @@ export function ReservationsIndexPage() {
       <PageHeader
         title="Reservations"
         description="Choose an activity to see who registered, cancel reservations, add students or export the list."
-        actions={<MonthSwitcher month={month} onChange={setMonth} />}
+        actions={
+          <>
+            <a className="btn" href="/api/admin/reservations/export.xlsx" download>
+              <Download size={16} /> Download Excel (all bookings)
+            </a>
+            <MonthSwitcher month={month} onChange={setMonth} />
+          </>
+        }
       />
       <section className="card">
         <div className="toolbar">

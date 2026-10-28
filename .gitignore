@@ -9,3 +9,9 @@ data/
 !.env.example
 *.log
 .DS_Store
+.dev.vars
+.wrangler/
+.cloudflare-secrets.json
+integrations/google-sheet/Code.local.gs
+.cloudflare-sheet-secrets.json
+.cloudflare-sheet-upload.json

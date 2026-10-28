@@ -397,8 +397,11 @@ export function FitnessPage() {
             )}
             {countdown.phase === 'done' && (
               <div className="fit-live">
-                Next up: {FITNESS_THEMES.find((t) => t.date > FITNESS_EVENT.date)?.name ?? 'more to come'}
-                <small>New theme every week</small>
+                This event has ended
+                <small>
+                  Thanks for joining! Next up: {FITNESS_THEMES.find((t) => t.date > FITNESS_EVENT.date)?.name ?? 'more to come'} · new
+                  theme every week
+                </small>
               </div>
             )}
             {linked ? (

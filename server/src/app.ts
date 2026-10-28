@@ -1,58 +1,48 @@
-import { existsSync } from 'node:fs';
-import path from 'node:path';
-import express from 'express';
-import helmet from 'helmet';
+import { Hono } from 'hono';
+import { secureHeaders } from 'hono/secure-headers';
 import type { AppContext } from './context.ts';
 import { adminRoutes } from './http/admin.routes.ts';
 import { authRoutes } from './http/auth.routes.ts';
-import { apiNotFound, errorHandler, noStore, requireJsonForMutations, sessionMiddleware } from './http/middleware.ts';
+import {
+  apiNotFound,
+  clientIpMiddleware,
+  errorHandler,
+  jsonBody,
+  noStore,
+  sessionMiddleware,
+  type AppEnv,
+} from './http/middleware.ts';
 import { publicRoutes } from './http/public.routes.ts';
 import { studentRoutes } from './http/student.routes.ts';
 import { createServices } from './services.ts';
 
+/** The JSON API (mounted at /api). Static files are served by the host: Workers Assets, or the Node entry point. */
 export function createApp(ctx: AppContext) {
   const services = createServices(ctx);
-  const app = express();
+  const app = new Hono<AppEnv>();
 
-  app.disable('x-powered-by');
-  if (ctx.config.trustProxy) app.set('trust proxy', 1);
   app.use(
-    helmet({
+    '*',
+    secureHeaders({
       // Keep https upgrades off for plain-HTTP intranet deployments; set COOKIE_SECURE and serve over HTTPS in production.
-      contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } },
-      hsts: ctx.config.cookieSecure,
+      strictTransportSecurity: ctx.config.cookieSecure ? 'max-age=15552000; includeSubDomains' : false,
     }),
   );
 
-  const api = express.Router();
-  api.use(noStore);
-  api.use(express.json({ limit: '100kb' }));
-  api.use(requireJsonForMutations);
-  api.use(sessionMiddleware(services.auth));
-  api.get('/health', (_req, res) => {
-    res.json({ status: 'ok' });
-  });
-  api.use('/auth', authRoutes(ctx, services));
-  api.use('/me', studentRoutes(services));
-  api.use('/admin', adminRoutes(ctx, services));
-  api.use(publicRoutes(ctx, services));
-  api.use(apiNotFound);
-  app.use('/api', api);
+  const api = new Hono<AppEnv>();
+  api.use('*', noStore);
+  api.use('*', clientIpMiddleware(ctx.config));
+  api.use('*', jsonBody);
+  api.use('*', sessionMiddleware(services.auth));
+  api.get('/health', (c) => c.json({ status: 'ok' }));
+  api.route('/auth', authRoutes(ctx, services));
+  api.route('/me', studentRoutes(services));
+  api.route('/admin', adminRoutes(ctx, services));
+  api.route('/', publicRoutes(ctx, services));
+  api.notFound(apiNotFound);
 
-  // Serve the built single-page app (npm run build) from the same origin.
-  const indexHtml = path.join(ctx.config.clientDistDir, 'index.html');
-  if (existsSync(indexHtml)) {
-    app.use(
-      '/assets',
-      express.static(path.join(ctx.config.clientDistDir, 'assets'), { immutable: true, maxAge: '1y', fallthrough: false }),
-    );
-    app.use(express.static(ctx.config.clientDistDir, { index: false }));
-    app.get(/^(?!\/api\/).*/, (_req, res) => {
-      res.setHeader('Cache-Control', 'no-cache');
-      res.sendFile(indexHtml);
-    });
-  }
-
-  app.use(errorHandler(ctx.log));
+  app.route('/api', api);
+  app.notFound(apiNotFound);
+  app.onError(errorHandler(ctx.log));
   return { app, services };
 }

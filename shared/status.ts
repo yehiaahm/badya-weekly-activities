@@ -25,7 +25,7 @@ export const STUDENT_STATUS_LABELS: Record<ActivityStatus, string> = {
   published: 'Open',
   full: 'Fully Booked',
   registration_closed: 'Registration Closed',
-  completed: 'Completed',
+  completed: 'Event Ended',
   cancelled: 'Cancelled',
 };
 
@@ -56,7 +56,7 @@ export function computeEffectiveStatus(activity: StatusInput, now: LocalDateTime
 export const RESERVATION_BLOCKERS = {
   full: { code: 'FULLY_BOOKED', message: 'Fully Booked' },
   registration_closed: { code: 'REGISTRATION_CLOSED', message: 'Registration Closed' },
-  completed: { code: 'ACTIVITY_COMPLETED', message: 'This activity has already taken place.' },
+  completed: { code: 'ACTIVITY_COMPLETED', message: 'This event has ended. Registration is closed.' },
   cancelled: { code: 'ACTIVITY_CANCELLED', message: 'This activity has been cancelled.' },
   draft: { code: 'ACTIVITY_NOT_FOUND', message: 'Activity not found.' },
 } as const satisfies Partial<Record<ActivityStatus, { code: string; message: string }>>;

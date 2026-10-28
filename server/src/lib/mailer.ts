@@ -1,4 +1,4 @@
-import type { AppConfig } from '../config.ts';
+import type { AppConfig } from '../config-base.ts';
 import type { Logger } from './logger.ts';
 
 export interface MailMessage {
@@ -36,37 +36,38 @@ export class MemoryMailer implements Mailer {
   }
 }
 
-class SmtpMailer implements Mailer {
+/**
+ * Sends email through the same Google Apps Script web app that fills the Google Sheet
+ * (`MailApp.sendEmail`, free; roughly 100 recipients/day for a personal Google account).
+ * Plain `fetch`, so it works on Cloudflare Workers where SMTP is not available.
+ */
+export class AppsScriptMailer implements Mailer {
   readonly delivers = true;
-  private readonly config: AppConfig['mail'];
-  private transport: Promise<{ sendMail(options: Record<string, unknown>): Promise<unknown> }> | null = null;
+  private readonly config: AppConfig['sheet'];
+  private readonly from: string;
 
-  constructor(config: AppConfig['mail']) {
+  constructor(config: AppConfig['sheet'], from: string) {
     this.config = config;
-  }
-
-  private getTransport() {
-    this.transport ??= import('nodemailer').then(({ default: nodemailer }) =>
-      nodemailer.createTransport({
-        host: this.config.smtpHost,
-        port: this.config.smtpPort,
-        secure: this.config.smtpSecure,
-        auth: this.config.smtpUser ? { user: this.config.smtpUser, pass: this.config.smtpPass } : undefined,
-      }),
-    );
-    return this.transport;
+    this.from = from;
   }
 
   async send(message: MailMessage): Promise<void> {
-    const transport = await this.getTransport();
-    await transport.sendMail({ from: this.config.from, to: message.to, subject: message.subject, text: message.text });
+    const response = await fetch(this.config.webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ secret: this.config.secret, action: 'mail', from: this.from, ...message }),
+      redirect: 'follow',
+      signal: AbortSignal.timeout(10_000),
+    });
+    const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+    if (!response.ok || !result?.ok) throw new Error(`Mail webhook failed: ${result?.error ?? `HTTP ${response.status}`}`);
   }
 }
 
 export function createMailer(config: AppConfig, log: Logger): Mailer {
-  if (config.mail.smtpHost) return new SmtpMailer(config.mail);
+  if (config.sheet.webhookUrl) return new AppsScriptMailer(config.sheet, config.mail.from);
   if (config.isProduction) {
-    log.warn('SMTP_HOST is not configured: emails (sign-in codes, confirmations) will only be written to the log.');
+    log.warn('SHEET_WEBHOOK_URL is not configured: emails (sign-in codes, confirmations) will only be written to the log.');
   }
   return new ConsoleMailer(log);
 }

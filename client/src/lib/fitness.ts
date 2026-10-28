@@ -1,4 +1,5 @@
 import { Disc3, Dumbbell, Flame, Music, Wind, Zap, type LucideIcon } from 'lucide-react';
+import { addMinutesLocal, type LocalDateTime } from '@shared/dates.ts';
 
 /** The first SAC community activity. Wall-clock time at Badya (Africa/Cairo). */
 export const FITNESS_EVENT = {
@@ -143,3 +144,15 @@ export const FITNESS_THEMES: FitnessTheme[] = [
 export const WORK_SECONDS = 30;
 export const REST_SECONDS = 8;
 export const GET_READY_SECONDS = 5;
+
+export type FitnessEventPhase = 'before' | 'live' | 'done';
+
+/** Where the kick-off event stands at a university wall-clock time. */
+export function fitnessEventPhase(now: LocalDateTime): FitnessEventPhase {
+  const start = `${FITNESS_EVENT.date}T${FITNESS_EVENT.time}`;
+  if (now < start) return 'before';
+  return now < addMinutesLocal(start, FITNESS_EVENT.liveMinutes) ? 'live' : 'done';
+}
+
+/** The first themed session after the kick-off, if one is planned. */
+export const NEXT_FITNESS_THEME = FITNESS_THEMES.find((t) => t.date > FITNESS_EVENT.date);

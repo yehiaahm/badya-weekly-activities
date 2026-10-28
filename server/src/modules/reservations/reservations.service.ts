@@ -14,11 +14,14 @@ import { isUniqueViolation } from '../../db/database.ts';
 import { conflict, notFound, parse } from '../../lib/errors.ts';
 import { reservationCode } from '../../lib/security.ts';
 import { csvFilename, textCell, toCsv } from '../../lib/csv.ts';
+import { buildXlsx } from '../../lib/xlsx.ts';
 import { toActivityDTO, toAdminActivityDTO } from '../activities/activities.mapper.ts';
 import { ActivityRepository } from '../activities/activities.repository.ts';
 import type { StudentRow } from '../students/students.repository.ts';
 import { StudentService } from '../students/students.service.ts';
+import { RECORD_HEADERS, toRecord } from './reservation-records.ts';
 import { ReservationRepository, type ReservationRow } from './reservations.repository.ts';
+import { SheetSync } from './sheet-sync.ts';
 
 export type ReserveOptions =
   | { actor: 'student'; signedInStudentId: number | null }
@@ -39,10 +42,13 @@ export class ReservationService {
   private readonly repo: ReservationRepository;
   private readonly activities: ActivityRepository;
   private readonly students: StudentService;
+  /** Queue + sender that keeps the Google Sheet in step with reservations. */
+  readonly sheet: SheetSync;
 
   constructor(ctx: AppContext) {
     this.ctx = ctx;
     this.repo = new ReservationRepository(ctx.db);
+    this.sheet = new SheetSync(ctx, this.repo);
     this.activities = new ActivityRepository(ctx.db);
     this.students = new StudentService(ctx);
   }
@@ -99,6 +105,7 @@ export class ReservationService {
           createdBy: isAdmin ? options.adminUserId : student.user_id,
           now: timestamp(this.ctx),
         });
+        this.sheet.enqueue(reservationId);
         return { reservationId, student };
       } catch (error) {
         if (isUniqueViolation(error)) throw conflict('ALREADY_REGISTERED', 'You are already registered for this activity.');
@@ -106,6 +113,7 @@ export class ReservationService {
       }
     });
 
+    this.ctx.background(this.sheet.flush());
     const reservation = this.repo.findById(reservationId)!;
     const activity = toActivityDTO(this.activities.findById(activityId)!, localNow(this.ctx));
     this.sendConfirmation(student, activity, reservation.code);
@@ -130,6 +138,7 @@ export class ReservationService {
       }
       this.cancel(reservation, 'student');
     });
+    this.ctx.background(this.sheet.flush());
   }
 
   cancelByAdmin(reservationId: number): void {
@@ -139,6 +148,7 @@ export class ReservationService {
       if (reservation.reservation_status === 'cancelled') throw conflict('ALREADY_CANCELLED', 'This reservation is already cancelled.');
       this.cancel(reservation, 'admin');
     });
+    this.ctx.background(this.sheet.flush());
   }
 
   listForActivity(activityId: number): ActivityReservationsResponse {
@@ -196,10 +206,19 @@ export class ReservationService {
     return { filename: csvFilename(activity.name, activity.date, 'registrations'), csv };
   }
 
+  /** Every reservation of every activity (cancelled ones included) as an Excel workbook. */
+  exportAllXlsx(): { filename: string; data: Uint8Array } {
+    const tz = this.ctx.config.timeZone;
+    const rows = this.repo.listDetailed().map((row) => toRecord(row, tz));
+    const stamp = nowIn(tz, this.ctx.clock.now()).slice(0, 10);
+    return { filename: `reservations-${stamp}.xlsx`, data: buildXlsx('Reservations', [...RECORD_HEADERS], rows) };
+  }
+
   // ---------------------------------------------------------------- helpers
 
   private cancel(reservation: ReservationRow, by: 'student' | 'admin') {
     this.repo.cancel(reservation.id, by, timestamp(this.ctx));
+    this.sheet.enqueue(reservation.id);
     // Attendance only exists for confirmed reservations.
     this.ctx.db.run('DELETE FROM attendance WHERE activity_id = ? AND student_id = ?', [
       reservation.activity_id,

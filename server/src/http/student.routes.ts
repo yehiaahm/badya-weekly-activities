@@ -1,22 +1,22 @@
-import { Router } from 'express';
+import { Hono } from 'hono';
 import { parseId } from '../lib/errors.ts';
 import type { Services } from '../services.ts';
-import { requireStudent, studentSession } from './middleware.ts';
+import { requireStudent, studentSession, type AppEnv } from './middleware.ts';
 
 /** Business rule 8: a student only ever sees and manages their own reservations. */
-export function studentRoutes(services: Services): Router {
-  const router = Router();
-  router.use(requireStudent);
+export function studentRoutes(services: Services): Hono<AppEnv> {
+  const router = new Hono<AppEnv>();
+  router.use('*', requireStudent);
 
-  router.get('/reservations', (req, res) => {
-    const { user } = studentSession(req);
-    res.json({ student: user.student, reservations: services.reservations.listForStudent(user.student.id) });
+  router.get('/reservations', (c) => {
+    const { user } = studentSession(c);
+    return c.json({ student: user.student, reservations: services.reservations.listForStudent(user.student.id) });
   });
 
-  router.post('/reservations/:id/cancel', (req, res) => {
-    const { user } = studentSession(req);
-    services.reservations.cancelByStudent(parseId(req.params.id), user.student.id);
-    res.status(204).end();
+  router.post('/reservations/:id/cancel', (c) => {
+    const { user } = studentSession(c);
+    services.reservations.cancelByStudent(parseId(c.req.param('id')), user.student.id);
+    return c.body(null, 204);
   });
 
   return router;

@@ -1,18 +1,18 @@
-import { Router } from 'express';
+import { Hono } from 'hono';
 import { WORKDAY_END, WORKDAY_START, WORKING_DAYS } from '../../../shared/calendar.ts';
 import { ACADEMIC_LEVELS, APP_NAME, MAJOR_SUGGESTIONS } from '../../../shared/constants.ts';
 import type { PublicConfig } from '../../../shared/types.ts';
 import { localNow, type AppContext } from '../context.ts';
 import { badRequest, parseId } from '../lib/errors.ts';
-import { limitByIp, RateLimiter } from '../lib/rate-limit.ts';
+import { enforceLimit, RateLimiter } from '../lib/rate-limit.ts';
 import type { Services } from '../services.ts';
-import { queryString } from './middleware.ts';
+import { queryString, type AppEnv } from './middleware.ts';
 
-export function publicRoutes(ctx: AppContext, services: Services): Router {
-  const router = Router();
+export function publicRoutes(ctx: AppContext, services: Services): Hono<AppEnv> {
+  const router = new Hono<AppEnv>();
   const reservationLimiter = new RateLimiter(20, 60_000);
 
-  router.get('/config', (_req, res) => {
+  router.get('/config', (c) => {
     const now = localNow(ctx);
     const body: PublicConfig = {
       appName: APP_NAME,
@@ -27,25 +27,24 @@ export function publicRoutes(ctx: AppContext, services: Services): Router {
       academicLevels: ACADEMIC_LEVELS,
       majorSuggestions: MAJOR_SUGGESTIONS,
     };
-    res.json(body);
+    return c.json(body);
   });
 
-  router.get('/activities', (req, res) => {
-    const month = queryString(req.query.month);
+  router.get('/activities', (c) => {
+    const month = queryString(c.req.query('month'));
     if (!month) throw badRequest('The month query parameter is required (YYYY-MM).');
-    res.json(services.activities.listPublic(month));
+    return c.json(services.activities.listPublic(month));
   });
 
-  router.get('/activities/:id', (req, res) => {
-    res.json(services.activities.getPublic(parseId(req.params.id)));
-  });
+  router.get('/activities/:id', (c) => c.json(services.activities.getPublic(parseId(c.req.param('id')))));
 
-  router.post('/activities/:id/reservations', limitByIp(reservationLimiter, 'reserve'), (req, res) => {
-    const confirmation = services.reservations.reserve(parseId(req.params.id), req.body, {
+  router.post('/activities/:id/reservations', (c) => {
+    enforceLimit(reservationLimiter, 'reserve', c.get('ip'));
+    const confirmation = services.reservations.reserve(parseId(c.req.param('id')), c.get('body'), {
       actor: 'student',
-      signedInStudentId: req.student?.user.student?.id ?? null,
+      signedInStudentId: c.get('student')?.user.student?.id ?? null,
     });
-    res.status(201).json(confirmation);
+    return c.json(confirmation, 201);
   });
 
   return router;

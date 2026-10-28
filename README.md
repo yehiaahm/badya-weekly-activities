@@ -89,7 +89,7 @@ To test on a phone on the same network, run `npm run dev:client -- --host` and o
 - The link works only while this computer is on and awake. Running the command again stops the old link and prints a new one.
 - On Windows you can double-click `Start public demo.cmd` instead. Start it from Windows like this, not from a tool session (for example Claude Code) that ends its child processes when it closes.
 - `npm run demo:public -- --reset` reloads fresh demo data; `npm run demo:public -- --stop` stops the server and the link.
-- No emails are sent (no SMTP), so students can reserve but cannot sign in to "My Reservations".
+- No emails are sent (no mail webhook), so students can reserve but cannot sign in to "My Reservations".
 
 This is for showing the project to someone, not for real use. For a permanent link, deploy it to a server (see Production).
 
@@ -101,17 +101,45 @@ This is for showing the project to someone, not for real use. For a permanent li
 - The free plan sleeps after 15 minutes without visitors. The next visit takes about a minute to wake it.
 - It starts with only the SAC "Aerobics & Fitness" kick-off (Wednesday 28 October, 11:30 AM): `DEMO_DATA` is `false`, so no sample activities are loaded, and `FEATURED_EVENT=true` puts that one activity back after every restart (`server/src/db/featured-event.ts`; capacity 100 and the 12:30 PM end time are planning values you can change in `/admin`). It also has no persistent disk, so anything added in `/admin` or reserved by visitors disappears when it sleeps or restarts. That's not enough for real students; use a server with a persistent disk (see Production).
 
-## Production
+## Deploy on Cloudflare (free) with a Google Sheet of all bookings
+
+The app runs entirely on Cloudflare's free plan: the built site is served by Workers Assets, and the API plus the database live in one SQLite-backed Durable Object ([worker/](worker/), [wrangler.jsonc](wrangler.jsonc)). Every booking and cancellation is also written to a Google Sheet (open it in Excel any time), and the admin panel can download all bookings as `.xlsx`.
+
+### 1. Google Sheet (bookings file + email)
+1. Create a Google Sheet (any name). Open **Extensions → Apps Script** and paste [integrations/google-sheet/Code.gs](integrations/google-sheet/Code.gs).
+2. Replace `SECRET` with a long random string.
+3. **Deploy → New deployment → Web app**: *Execute as* **Me**, *Who has access* **Anyone**. Authorize it, then copy the **Web app URL**.
+4. Rows appear on a tab named `Reservations`, one per booking (key = Reservation ID). Cancelling updates the same row. **File → Download → Microsoft Excel (.xlsx)** gives the Excel file.
+
+The same script emails the students (sign-in codes and booking confirmations) from your Google account. Free Google accounts allow about 100 recipients per day.
+
+### 2. Cloudflare
+```bash
+npm install
+npx wrangler login                              # one-time, opens the browser
+npx wrangler secret put ADMIN_EMAIL             # e.g. sports.admin@badyauni.edu.eg
+npx wrangler secret put ADMIN_PASSWORD          # 10+ characters
+npx wrangler secret put SHEET_WEBHOOK_URL       # the Web app URL from step 1
+npx wrangler secret put SHEET_WEBHOOK_SECRET    # the SECRET you chose in Code.gs
+npm run deploy                                  # builds and publishes; prints the https://...workers.dev link
+```
+Admin panel: `<link>/admin`. Try it locally first with `npm run cf:dev`.
+
+- **Where bookings live:** the Durable Object database is the source of truth. If the Google Sheet is unreachable the booking still succeeds, the update stays queued, and it is retried automatically. **Admin → Reservations → Download Excel** always exports the complete list from the database.
+- **Free-plan limits:** 100,000 API requests/day, 100,000 database row writes/day, 5 GB storage. Static files are not counted.
+- Change `UNIVERSITY_EMAIL_DOMAINS` and `APP_TIMEZONE` under `vars` in `wrangler.jsonc`.
+
+## Production (own server)
 
 ```bash
 npm ci
 npm run build
-# set ADMIN_EMAIL, ADMIN_PASSWORD (10+ characters), SMTP_* and other values in .env or the environment
+# set ADMIN_EMAIL, ADMIN_PASSWORD (10+ characters), SHEET_WEBHOOK_* and other values in .env or the environment
 npm start         # http://<host>:4000
 ```
 
 - Run behind HTTPS. Session cookies are `Secure` in production. If you terminate TLS at a proxy, set `TRUST_PROXY=true`.
-- Configure SMTP. Without it, sign-in codes and confirmations only reach the server log.
+- Configure `SHEET_WEBHOOK_URL`/`SHEET_WEBHOOK_SECRET` (see above) so emails are sent. Without them, sign-in codes and confirmations only reach the server log.
 - Back up the SQLite file (`DATABASE_PATH`, by default `data/badya.db`, in WAL mode).
 - Check `UNIVERSITY_EMAIL_DOMAINS`. It defaults to `badyauni.edu.eg`.
 
@@ -120,9 +148,11 @@ npm start         # http://<host>:4000
 ```
 shared/           Code used by both sides: calendar and deadline rules, status rules, validation (zod), API types
 server/src/
-  app.ts          Express app: security headers, JSON API under /api, serves the built client
+  app.ts          Hono app: security headers and the JSON API under /api (static files: Workers Assets, or index.ts on Node)
   config.ts       Environment configuration (.env supported)
-  db/             SQLite wrapper, SQL migrations, demo seed
+  db/             Database interface + drivers (node:sqlite, Durable Object SQLite), SQL migrations, demo seed
+worker/           Cloudflare entry: Worker router + the AppDO Durable Object (wrangler.jsonc)
+integrations/     Google Apps Script that fills the bookings Google Sheet
   http/           Routes (public, auth, student, admin) and middleware (sessions, CSRF, errors)
   modules/        Repositories and services: activities, reservations, students, attendance, reports, auth
 server/test/      node:test suites (in-memory database, controllable clock)
@@ -134,7 +164,7 @@ client/src/
   lib/            API client, TanStack Query hooks, calendar helpers, .ics export
 ```
 
-**Stack:** Node.js + Express 5, built-in `node:sqlite`, zod, React 19, React Router 8, TanStack Query, Vite, plain CSS design tokens and lucide icons.
+**Stack:** Hono (Node.js or Cloudflare Workers), SQLite (`node:sqlite` locally, Durable Object storage on Cloudflare), zod, React 19, React Router 8, TanStack Query, Vite, plain CSS design tokens and lucide icons.
 
 **Look:** the colours come from the Student Athlete Committee shield: navy `#0a3466`, green `#026e5f` and sand `#e5bb85` (`client/src/styles/tokens.css`). Page titles use Oswald, which matches the logo's condensed wordmark, and body text uses Plus Jakarta Sans.
 

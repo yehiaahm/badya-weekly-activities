@@ -36,7 +36,7 @@ const BLOCKER_TITLES: Record<string, string> = {
   REGISTRATION_CLOSED: 'Registration Closed',
   ALREADY_REGISTERED: 'You are already registered for this activity.',
   ACTIVITY_CANCELLED: 'Activity cancelled',
-  ACTIVITY_COMPLETED: 'Activity completed',
+  ACTIVITY_COMPLETED: 'Event ended',
   IDENTITY_MISMATCH: 'Please check your details',
   RATE_LIMITED: 'Too many attempts',
 };
@@ -388,7 +388,7 @@ function UnavailablePanel({ activity }: { activity: ActivityDTO }) {
       return <Blocker icon={Ban} tone="danger" title="Activity cancelled" body="This activity has been cancelled." action={browse} />;
     default:
       return (
-        <Blocker icon={CalendarDays} tone="info" title="Activity completed" body="This activity has already taken place." action={browse} />
+        <Blocker icon={CalendarDays} tone="info" title="Event ended" body="This event has ended. Registration is closed." action={browse} />
       );
   }
 }

@@ -124,9 +124,11 @@ export function ActivityDetailPage() {
                 ) : activity.status === 'cancelled' ? (
                   <strong>This activity has been cancelled.</strong>
                 ) : (
-                  <strong>This activity has already taken place.</strong>
-                )}{' '}
-                Reservations close {leadHours} working hours before the start — Fridays and Saturdays don't count.
+                  <strong>This event has ended. Registration is closed.</strong>
+                )}
+                {activity.status !== 'completed' && activity.status !== 'cancelled' && (
+                  <> Reservations close {leadHours} working hours before the start — Fridays and Saturdays don't count.</>
+                )}
               </span>
             </div>
 

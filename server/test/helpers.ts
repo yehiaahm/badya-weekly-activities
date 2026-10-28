@@ -1,11 +1,13 @@
 import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
+import type { Server } from 'node:http';
+import { serve } from '@hono/node-server';
 import { zonedToInstant } from '../../shared/dates.ts';
 import type { StudentDetailsInput } from '../../shared/validation.ts';
 import { createApp } from '../src/app.ts';
 import { config } from '../src/config.ts';
 import type { AppContext, Clock } from '../src/context.ts';
-import { Database } from '../src/db/database.ts';
+import { NodeDatabase } from '../src/db/node-database.ts';
 import { migrate } from '../src/db/migrate.ts';
 import { silentLogger } from '../src/lib/logger.ts';
 import { MemoryMailer } from '../src/lib/mailer.ts';
@@ -112,15 +114,20 @@ export class HttpClient {
 
 /** Boots the real Express app on a random port with an in-memory database. */
 export async function startTestApp(localNow = '2026-09-28T09:00') {
-  const db = new Database(':memory:');
+  const db = new NodeDatabase(':memory:');
   migrate(db);
   const clock = new TestClock(localNow);
   const mailer = new MemoryMailer();
+  const pending: Promise<unknown>[] = [];
   const ctx: AppContext = {
     db,
     clock,
     mailer,
     log: silentLogger,
+    // Tests await background work explicitly (see `settle`), so it is collected instead of fire-and-forget.
+    background: (task) => {
+      pending.push(task.catch(() => {}));
+    },
     config: {
       ...config,
       nodeEnv: 'test',
@@ -137,9 +144,14 @@ export async function startTestApp(localNow = '2026-09-28T09:00') {
   const { app, services } = createApp(ctx);
   await services.auth.upsertAdmin(ADMIN);
 
-  const server = app.listen(0, '127.0.0.1');
+  const server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' }) as Server;
   await once(server, 'listening');
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+  /** Waits for detached work (Google Sheet pushes) started by earlier requests. */
+  const settle = async () => {
+    while (pending.length) await Promise.all(pending.splice(0));
+  };
 
   /** Creates a published activity through the service layer. */
   const activity = (values: Partial<Record<string, unknown>> = {}) =>
@@ -168,7 +180,9 @@ export async function startTestApp(localNow = '2026-09-28T09:00') {
     services,
     activity,
     client: () => new HttpClient(base),
+    settle,
     close: async () => {
+      await settle();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       db.close();

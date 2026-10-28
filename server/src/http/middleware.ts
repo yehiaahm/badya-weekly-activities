@@ -1,121 +1,130 @@
-import type { ErrorRequestHandler, Request, RequestHandler, Response } from 'express';
-import type { AppConfig } from '../config.ts';
+import type { Context, ErrorHandler, MiddlewareHandler, NotFoundHandler } from 'hono';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+import type { AppConfig } from '../config-base.ts';
 import { AppError, badRequest, unauthorized } from '../lib/errors.ts';
 import type { Logger } from '../lib/logger.ts';
 import { SESSION_COOKIES, type AuthService, type IssuedSession, type SessionRole } from '../modules/auth/auth.service.ts';
 import type { AuthSession } from '../modules/auth/auth.types.ts';
 
-export function parseCookies(header: string | undefined): Record<string, string> {
-  const cookies: Record<string, string> = {};
-  if (!header) return cookies;
-  for (const part of header.split(';')) {
-    const index = part.indexOf('=');
-    if (index < 0) continue;
-    const name = part.slice(0, index).trim();
-    const value = part.slice(index + 1).trim();
-    if (!name || name in cookies) continue;
-    try {
-      cookies[name] = decodeURIComponent(value);
-    } catch {
-      cookies[name] = value;
-    }
-  }
-  return cookies;
+/** Per-request values set by the middleware below. */
+export interface AppVariables {
+  /** Staff session (admin cookie). */
+  admin: AuthSession | null;
+  /** Verified-student session (student cookie). */
+  student: AuthSession | null;
+  /** Parsed JSON body (POST/PUT/PATCH), undefined when empty. */
+  body: any;
+  /** Best-known client address, used for rate limiting. */
+  ip: string;
 }
 
+export type AppEnv = { Variables: AppVariables };
+export type AppContextHono = Context<AppEnv>;
+
+const MAX_BODY_BYTES = 100 * 1024;
+
 /** Resolves the staff and student sessions (separate cookies, so both can coexist in one browser). */
-export function sessionMiddleware(auth: AuthService): RequestHandler {
-  return (req, _res, next) => {
-    const cookies = parseCookies(req.headers.cookie);
-    const adminToken = cookies[SESSION_COOKIES.admin];
-    const studentToken = cookies[SESSION_COOKIES.student];
-    req.admin = adminToken ? auth.resolveSession(adminToken, 'admin') : null;
-    req.student = studentToken ? auth.resolveSession(studentToken, 'student') : null;
-    next();
+export function sessionMiddleware(auth: AuthService): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const adminToken = getCookie(c, SESSION_COOKIES.admin);
+    const studentToken = getCookie(c, SESSION_COOKIES.student);
+    c.set('admin', adminToken ? auth.resolveSession(adminToken, 'admin') : null);
+    c.set('student', studentToken ? auth.resolveSession(studentToken, 'student') : null);
+    await next();
   };
 }
 
-export function setSessionCookie(res: Response, config: AppConfig, role: SessionRole, session: IssuedSession): void {
-  res.cookie(SESSION_COOKIES[role], session.token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: config.cookieSecure,
-    path: '/',
-    expires: session.expiresAt,
-  });
-}
-
-export function clearSessionCookie(res: Response, config: AppConfig, role: SessionRole): void {
-  res.clearCookie(SESSION_COOKIES[role], { httpOnly: true, sameSite: 'lax', secure: config.cookieSecure, path: '/' });
-}
-
-export const requireAdmin: RequestHandler = (req, _res, next) => {
-  if (!req.admin) throw unauthorized('Please sign in with a staff account.');
-  next();
-};
-
-export const requireStudent: RequestHandler = (req, _res, next) => {
-  if (!req.student?.user.student) throw unauthorized('Verify your university email to see your reservations.');
-  next();
-};
-
-export function adminSession(req: Request): AuthSession {
-  if (!req.admin) throw unauthorized();
-  return req.admin;
-}
-
-export function studentSession(req: Request): AuthSession & { user: { student: NonNullable<AuthSession['user']['student']> } } {
-  const session = req.student;
-  if (!session?.user.student) throw unauthorized('Verify your university email to see your reservations.');
-  return session as AuthSession & { user: { student: NonNullable<AuthSession['user']['student']> } };
+/**
+ * Client address for rate limiting: Cloudflare's header, or the first X-Forwarded-For hop
+ * when behind a trusted proxy, otherwise the socket address (Node).
+ */
+export function clientIpMiddleware(config: AppConfig): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const cloudflare = c.req.header('cf-connecting-ip');
+    const forwarded = config.trustProxy ? c.req.header('x-forwarded-for')?.split(',')[0]?.trim() : undefined;
+    const socket = (c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined)?.incoming?.socket?.remoteAddress;
+    c.set('ip', cloudflare ?? forwarded ?? socket ?? 'unknown');
+    await next();
+  };
 }
 
 /**
  * CSRF defence: state-changing requests must be JSON. Browsers can't send a
  * cross-site JSON request with cookies without a CORS preflight, which this
  * API never approves. Session cookies are also SameSite=Lax.
+ * Also parses the (size-limited) JSON body once for all handlers.
  */
-export const requireJsonForMutations: RequestHandler = (req, _res, next) => {
-  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-    const type = String(req.headers['content-type'] ?? '').toLowerCase();
+export const jsonBody: MiddlewareHandler<AppEnv> = async (c, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(c.req.method)) {
+    const type = (c.req.header('content-type') ?? '').toLowerCase();
     if (!type.startsWith('application/json')) throw badRequest('Requests must be sent as JSON.', undefined, 'UNSUPPORTED_MEDIA_TYPE');
+    const text = await c.req.text();
+    if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) throw new AppError(413, 'PAYLOAD_TOO_LARGE', 'The request is too large.');
+    try {
+      c.set('body', text ? JSON.parse(text) : undefined);
+    } catch {
+      throw badRequest('The request body is not valid JSON.', undefined, 'INVALID_JSON');
+    }
   }
-  next();
+  await next();
 };
+
+export const noStore: MiddlewareHandler<AppEnv> = async (c, next) => {
+  await next();
+  c.res.headers.set('Cache-Control', 'no-store');
+};
+
+export function setSessionCookie(c: AppContextHono, config: AppConfig, role: SessionRole, session: IssuedSession): void {
+  setCookie(c, SESSION_COOKIES[role], session.token, {
+    httpOnly: true,
+    sameSite: 'Lax',
+    secure: config.cookieSecure,
+    path: '/',
+    expires: session.expiresAt,
+  });
+}
+
+export function clearSessionCookie(c: AppContextHono, config: AppConfig, role: SessionRole): void {
+  deleteCookie(c, SESSION_COOKIES[role], { httpOnly: true, sameSite: 'Lax', secure: config.cookieSecure, path: '/' });
+}
+
+export const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
+  if (!c.get('admin')) throw unauthorized('Please sign in with a staff account.');
+  await next();
+};
+
+export const requireStudent: MiddlewareHandler<AppEnv> = async (c, next) => {
+  if (!c.get('student')?.user.student) throw unauthorized('Verify your university email to see your reservations.');
+  await next();
+};
+
+export function adminSession(c: AppContextHono): AuthSession {
+  const session = c.get('admin');
+  if (!session) throw unauthorized();
+  return session;
+}
+
+export function studentSession(c: AppContextHono): AuthSession & { user: { student: NonNullable<AuthSession['user']['student']> } } {
+  const session = c.get('student');
+  if (!session?.user.student) throw unauthorized('Verify your university email to see your reservations.');
+  return session as AuthSession & { user: { student: NonNullable<AuthSession['user']['student']> } };
+}
 
 export function queryString(value: unknown): string | undefined {
   if (typeof value === 'string') return value.trim() || undefined;
-  if (Array.isArray(value) && typeof value[0] === 'string') return value[0].trim() || undefined;
   return undefined;
 }
 
-export const noStore: RequestHandler = (_req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store');
-  next();
-};
+export const apiNotFound: NotFoundHandler = (c) => c.json({ error: { code: 'NOT_FOUND', message: 'API route not found.' } }, 404);
 
-export const apiNotFound: RequestHandler = (_req, res) => {
-  res.status(404).json({ error: { code: 'NOT_FOUND', message: 'API route not found.' } });
-};
-
-export function errorHandler(log: Logger): ErrorRequestHandler {
-  return (error, req, res, _next) => {
+export function errorHandler(log: Logger): ErrorHandler {
+  return (error, c) => {
     if (error instanceof AppError) {
-      res.status(error.status).json({ error: { code: error.code, message: error.message, fields: error.fields } });
-      return;
+      return c.json({ error: { code: error.code, message: error.message, fields: error.fields } }, error.status as 400);
     }
-    const type = (error as { type?: string } | null)?.type;
-    if (type === 'entity.parse.failed') {
-      res.status(400).json({ error: { code: 'INVALID_JSON', message: 'The request body is not valid JSON.' } });
-      return;
-    }
-    if (type === 'entity.too.large') {
-      res.status(413).json({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'The request is too large.' } });
-      return;
-    }
-    log.error(`Unhandled error on ${req.method} ${req.originalUrl}`, {
+    log.error(`Unhandled error on ${c.req.method} ${c.req.path}`, {
       error: error instanceof Error ? (error.stack ?? error.message) : String(error),
     });
-    res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.' } });
+    return c.json({ error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.' } }, 500);
   };
 }
